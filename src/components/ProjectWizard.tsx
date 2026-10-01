@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ProjectKind, ProjectProfile } from "../domain/types";
+import { createId } from "../utils/id";
 
 const questions = [
   { key: "topic", prompt: "你想学习哪个行业或技术？", placeholder: "例如：新能源汽车行业，或 React 性能优化" },
@@ -32,7 +33,7 @@ export function ProjectWizard({ onClose, onCreate, projectId }: Props) {
     }
     const now = new Date().toISOString();
     await onCreate({
-      id: projectId ?? crypto.randomUUID(),
+      id: projectId ?? createId(),
       title: nextAnswers.topic,
       topic: nextAnswers.topic,
       kind,

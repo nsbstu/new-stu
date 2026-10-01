@@ -1,4 +1,5 @@
 import type { ProjectWorkspace, SkillArtifact, SkillManifest } from "../domain/types";
+import { createId } from "../utils/id";
 import { createReflectionReport } from "../reflection/reflection";
 import { loadApiKey, loadModelSettings, isModelConfigured, modelEndpoint } from "../ai/modelSettings";
 
@@ -101,7 +102,7 @@ export async function generateSkillArtifact(project: ProjectWorkspace, skill: Sk
   );
 
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     skillId: skill.id,
     revision: previous.length + 1,
     status: "draft",

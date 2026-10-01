@@ -10,6 +10,7 @@ import { ModelSettingsModal } from "../components/ModelSettingsModal";
 import { MentorChat } from "../components/MentorChat";
 import { isModelConfigured } from "../ai/modelSettings";
 import { createProjectDirectory, getWorkspaceDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
+import { createId } from "../utils/id";
 
 const statusLabels: Record<SkillStatus, string> = {
   locked: "未解锁", ready: "可开始", running: "生成中", reviewing: "反思中",
@@ -65,7 +66,7 @@ export function App() {
   }
 
   async function startProjectCreation() {
-    const projectId = crypto.randomUUID();
+    const projectId = createId();
     if (supportsProjectFolders()) {
       const workspace = await getWorkspaceDirectory();
       if (!workspace) { setFolderStatus("请先在“模型与设置”中设置系统数据目录"); setShowSettings(true); return; }

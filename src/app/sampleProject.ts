@@ -1,11 +1,12 @@
 import type { ProjectWorkspace } from "../domain/types";
 import { createInitialRuns } from "../workflow/workflow";
+import { createId } from "../utils/id";
 
 export function createSampleProject(): ProjectWorkspace {
   const now = new Date().toISOString();
   return {
     profile: {
-      id: crypto.randomUUID(),
+      id: createId(),
       title: "储能行业探索",
       topic: "中国储能行业的价值链、商业模式与技术路线",
       kind: "industry",
