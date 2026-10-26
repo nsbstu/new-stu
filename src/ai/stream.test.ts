@@ -27,3 +27,14 @@ describe("model SSE", () => {
     expect(await readModelStream(response)).toBe("结果");
   });
 });
+describe("stream completion without connection closure", () => {
+  it("returns at finish_reason even if transport cancellation never resolves", async () => {
+    const response = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"完成"},"finish_reason":"stop"}]}\n\n'));
+      },
+      cancel() { return new Promise(() => {}); },
+    }), { headers: { "content-type": "text/event-stream" } });
+    expect(await readModelStream(response)).toBe("完成");
+  });
+});

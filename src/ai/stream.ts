@@ -33,7 +33,7 @@ export async function readModelStream(response: Response, onContent?: (content: 
       buffer += decoder.decode(value, { stream: !done });
       buffer = buffer.replace(/\r\n/g, "\n");
       let end: number;
-      while ((end = buffer.indexOf("\n\n")) >= 0) {
+      while (!finished && (end = buffer.indexOf("\n\n")) >= 0) {
         event(buffer.slice(0, end));
         buffer = buffer.slice(end + 2);
       }
@@ -44,7 +44,7 @@ export async function readModelStream(response: Response, onContent?: (content: 
     if (!content.trim()) throw new Error("模型未返回有效内容");
     return content;
   } finally {
-    try { await reader.cancel(); } catch { /* connection may already be closed */ }
+    void reader.cancel().catch(() => { /* connection may already be closed */ });
     reader.releaseLock();
   }
 }

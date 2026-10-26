@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ProjectProfile, ProjectWorkspace, SkillArtifact, SkillStatus } from "../domain/types";
 import { skillManifests } from "../skills/manifests";
 import { generateSkillArtifact } from "../skills/engine";
@@ -38,6 +38,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMentor, setShowMentor] = useState(false);
+  const generationActive = useRef(false);
   const [streaming, setStreaming] = useState<{ projectId: string; skillId: string; content: string }>();
   const [error, setError] = useState("");
 
@@ -62,7 +63,7 @@ export function App() {
 
   function persistProject(updated: ProjectWorkspace) {
     repository.save(updated);
-    void saveProjectToDirectory(updated);
+    void saveProjectToDirectory(updated).catch((reason) => setError("项目文件保存失败：" + (reason instanceof Error ? reason.message : String(reason))));
     setProjects((current) => current.map((item) => item.profile.id === updated.profile.id ? updated : item));
   }
 
@@ -81,7 +82,7 @@ export function App() {
     const project: ProjectWorkspace = { profile, runs: createInitialRuns(), artifacts: [], mastery: 0 };
     await createProjectDirectory(project);
     repository.save(project);
-    void saveProjectToDirectory(project);
+    void saveProjectToDirectory(project).catch((reason) => setError("项目文件保存失败：" + (reason instanceof Error ? reason.message : String(reason))));
     setProjects((current) => [project, ...current]);
     setActiveProjectId(project.profile.id);
     setSelectedSkillId(skillManifests[0].id);
@@ -103,12 +104,13 @@ export function App() {
   }
 
   async function generateSelectedSkill() {
-    if (!activeProject || !selectedRun || selectedRun.status === "locked" || selectedRun.status === "running") return;
+    if (generationActive.current || !activeProject || !selectedRun || selectedRun.status === "locked" || selectedRun.status === "running") return;
     setError("");
     const runningProject: ProjectWorkspace = {
       ...activeProject,
       runs: activeProject.runs.map((run) => run.skillId === selectedSkill.id ? { ...run, status: "running" } : run),
     };
+    generationActive.current = true;
     setStreaming({ projectId: activeProject.profile.id, skillId: selectedSkill.id, content: "" });
     persistProject(runningProject);
     try {
@@ -123,11 +125,14 @@ export function App() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "生成失败");
       persistProject({ ...runningProject, runs: runningProject.runs.map((run) => run.skillId === selectedSkill.id ? { ...run, status: "failed" } : run) });
+    } finally {
+      generationActive.current = false;
+      setStreaming(undefined);
     }
   }
 
   function confirmSelectedArtifact() {
-    if (!activeProject || !selectedArtifact || selectedArtifact.status !== "draft") return;
+    if (generationActive.current || !activeProject || !selectedArtifact || selectedArtifact.status !== "draft") return;
     const now = new Date().toISOString();
     const artifacts = activeProject.artifacts.map((artifact) => artifact.id === selectedArtifact.id ? { ...artifact, status: "confirmed" as const, confirmedAt: now } : artifact);
     const updated: ProjectWorkspace = {
@@ -189,7 +194,7 @@ export function App() {
             <p className="skill-description">{selectedSkill.description}</p>
             <div className="input-context"><strong>本步输入</strong><span>{selectedSkill.order === 1 ? "项目访谈档案" : "前序已确认成果 " + activeProject.artifacts.filter((artifact) => artifact.status === "confirmed" && skillManifests.find((skill) => skill.id === artifact.skillId)!.order < selectedSkill.order).length + " 项"}</span></div>
             <div className="mission-block"><h3>本关预期产出</h3><div className="output-tags">{selectedSkill.outputSections.map((section) => <span key={section}>{section}</span>)}</div></div>
-            {streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><pre>{streaming.content || "正在等待模型输出…"}</pre></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
+            {selectedRun?.status === "running" && streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><pre>{streaming.content || "正在等待模型输出…"}</pre></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
             {error && <p className="error-message">{error}</p>}
             <div className="action-row"><span className={isModelConfigured() ? "model-state configured" : "model-state"}>{isModelConfigured() ? "● 已配置模型" : "○ 未配置模型，将使用本地兜底内容"}</span><button className="secondary-button" onClick={() => setShowSettings(true)}>模型配置</button><button className="secondary-button" disabled={selectedRun?.status === "locked" || selectedRun?.status === "running"} onClick={generateSelectedSkill}>{selectedRun?.status === "running" ? "生成中…" : selectedArtifact ? "重新生成" : "生成本关成果"}</button><button className="primary-button" disabled={selectedRun?.status === "running" || !selectedArtifact || selectedArtifact.status !== "draft"} onClick={confirmSelectedArtifact}>确认并进入下一关</button></div>
           </article>
