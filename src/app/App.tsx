@@ -38,6 +38,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMentor, setShowMentor] = useState(false);
+  const [streaming, setStreaming] = useState<{ projectId: string; skillId: string; content: string }>();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -108,9 +109,12 @@ export function App() {
       ...activeProject,
       runs: activeProject.runs.map((run) => run.skillId === selectedSkill.id ? { ...run, status: "running" } : run),
     };
+    setStreaming({ projectId: activeProject.profile.id, skillId: selectedSkill.id, content: "" });
     persistProject(runningProject);
     try {
-      const artifact = await generateSkillArtifact(runningProject, selectedSkill);
+      const artifact = await generateSkillArtifact(runningProject, selectedSkill, (content) => {
+        setStreaming({ projectId: runningProject.profile.id, skillId: selectedSkill.id, content });
+      });
       persistProject({
         ...runningProject,
         artifacts: [...runningProject.artifacts, artifact],
@@ -185,9 +189,9 @@ export function App() {
             <p className="skill-description">{selectedSkill.description}</p>
             <div className="input-context"><strong>本步输入</strong><span>{selectedSkill.order === 1 ? "项目访谈档案" : "前序已确认成果 " + activeProject.artifacts.filter((artifact) => artifact.status === "confirmed" && skillManifests.find((skill) => skill.id === artifact.skillId)!.order < selectedSkill.order).length + " 项"}</span></div>
             <div className="mission-block"><h3>本关预期产出</h3><div className="output-tags">{selectedSkill.outputSections.map((section) => <span key={section}>{section}</span>)}</div></div>
-            {selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
+            {streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><pre>{streaming.content || "正在等待模型输出…"}</pre></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
             {error && <p className="error-message">{error}</p>}
-            <div className="action-row"><span className={isModelConfigured() ? "model-state configured" : "model-state"}>{isModelConfigured() ? "● 已配置模型" : "○ 未配置模型，将使用本地兜底内容"}</span><button className="secondary-button" onClick={() => setShowSettings(true)}>模型配置</button><button className="secondary-button" disabled={selectedRun?.status === "locked" || selectedRun?.status === "running"} onClick={generateSelectedSkill}>{selectedRun?.status === "running" ? "生成中…" : selectedArtifact ? "重新生成" : "生成本关成果"}</button><button className="primary-button" disabled={!selectedArtifact || selectedArtifact.status !== "draft"} onClick={confirmSelectedArtifact}>确认并进入下一关</button></div>
+            <div className="action-row"><span className={isModelConfigured() ? "model-state configured" : "model-state"}>{isModelConfigured() ? "● 已配置模型" : "○ 未配置模型，将使用本地兜底内容"}</span><button className="secondary-button" onClick={() => setShowSettings(true)}>模型配置</button><button className="secondary-button" disabled={selectedRun?.status === "locked" || selectedRun?.status === "running"} onClick={generateSelectedSkill}>{selectedRun?.status === "running" ? "生成中…" : selectedArtifact ? "重新生成" : "生成本关成果"}</button><button className="primary-button" disabled={selectedRun?.status === "running" || !selectedArtifact || selectedArtifact.status !== "draft"} onClick={confirmSelectedArtifact}>确认并进入下一关</button></div>
           </article>
 
           <aside className="intel-panel">

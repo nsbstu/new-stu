@@ -1,3 +1,4 @@
+import { readModelStream } from "../ai/stream";
 import type { ProjectWorkspace, SkillArtifact, SkillManifest } from "../domain/types";
 import { createId } from "../utils/id";
 import { createReflectionReport } from "../reflection/reflection";
@@ -8,7 +9,7 @@ function confirmedUpstream(project: ProjectWorkspace, order: number) {
   return project.artifacts.filter((artifact) => allowedIds.includes(artifact.id));
 }
 
-function fallbackContent(project: ProjectWorkspace, skill: SkillManifest, upstream: SkillArtifact[]) {
+function fallbackContent(project: ProjectWorkspace, skill: SkillManifest, upstream: SkillArtifact[], onContent?: (content: string) => void) {
   const normalizedGoal = project.profile.goal.replace(/[。.!！?？]+$/, "");
   const context = upstream.length > 0
     ? upstream.map((artifact) => artifact.title + "：" + artifact.summary).join("\n")
@@ -24,7 +25,7 @@ function fallbackContent(project: ProjectWorkspace, skill: SkillManifest, upstre
     "\n\n## 向下一步传递\n下一步将读取本成果的摘要、关键结论、未决问题和引用关系。";
 }
 
-async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManifest, upstream: SkillArtifact[]) {
+async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManifest, upstream: SkillArtifact[], onContent?: (content: string) => void) {
   const settings = loadModelSettings();
   const apiKey = loadApiKey();
   const upstreamText = upstream.map((artifact) => artifact.title + "\n" + artifact.content).join("\n\n");
@@ -42,6 +43,12 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
 
   const transientStatuses = new Set([429, 502, 503, 504]);
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    const startedAt = performance.now();
+    const requestId = createId();
+    const logContext = { requestId, attempt: attempt + 1, model: settings.model,
+      endpoint: modelEndpoint(settings.baseUrl, "/chat/completions"), skill: skill.id };
+    console.info("[ModelRequest] 开始", { ...logContext, at: new Date().toISOString(),
+      temperature: settings.temperature, max_tokens: 4096, promptCharacters: prompt.length });
     let response: Response;
     try {
       response = await fetch(modelEndpoint(settings.baseUrl, "/chat/completions"), {
@@ -51,10 +58,15 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
         model: settings.model,
         temperature: settings.temperature,
         max_tokens: 4096,
+        stream: true,
         messages: [{ role: "user", content: prompt }],
       }),
       });
     } catch (error) {
+      console.error("[ModelRequest] 网络失败", { ...logContext,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        errorName: error instanceof Error ? error.name : "Unknown",
+        errorMessage: error instanceof Error ? error.message : String(error) });
       if (!(error instanceof TypeError)) throw error;
       if (attempt === 2) {
         throw new Error("模型请求未取得响应（已尝试 3 次）：" + error.message +
@@ -63,11 +75,22 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
       await new Promise((resolve) => globalThis.setTimeout(resolve, 1000 * (attempt + 1)));
       continue;
     }
+    console.info("[ModelRequest] 收到响应", { ...logContext,
+      elapsedMs: Math.round(performance.now() - startedAt), status: response.status,
+      requestIdFromProvider: response.headers?.get("x-request-id"),
+      contentType: response.headers?.get("content-type") });
     if (response.ok) {
-      const data = await response.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) throw new Error("模型未返回有效内容");
-      return String(content);
+      try {
+        const content = await readModelStream(response, onContent);
+        console.info("[ModelRequest] 流式完成", { ...logContext,
+          elapsedMs: Math.round(performance.now() - startedAt), contentCharacters: content.length });
+        return content;
+      } catch (error) {
+        console.error("[ModelRequest] 流式读取失败", { ...logContext,
+          elapsedMs: Math.round(performance.now() - startedAt),
+          errorMessage: error instanceof Error ? error.message : String(error) });
+        throw error;
+      }
     }
     if (!transientStatuses.has(response.status) || attempt === 2) {
       let detail = "HTTP " + response.status;
@@ -82,14 +105,14 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
   throw new Error("模型服务暂时不可用");
 }
 
-export async function generateSkillArtifact(project: ProjectWorkspace, skill: SkillManifest): Promise<SkillArtifact> {
+export async function generateSkillArtifact(project: ProjectWorkspace, skill: SkillManifest, onContent?: (content: string) => void): Promise<SkillArtifact> {
   const upstream = confirmedUpstream(project, skill.order);
   let content: string;
   let generatedBy: SkillArtifact["generatedBy"] = "local-fallback";
   let generationWarning: string | undefined;
   if (isModelConfigured()) {
     try {
-      content = await callConfiguredModel(project, skill, upstream);
+      content = await callConfiguredModel(project, skill, upstream, onContent);
       generatedBy = "configured-model";
     } catch (error) {
       generationWarning = error instanceof Error ? error.message : "模型服务暂时不可用";
