@@ -22,7 +22,7 @@ const repository = new LocalProjectRepository();
 
 function loadProjects() {
   const saved = repository.list();
-  if (saved.length > 0) return saved;
+  if (saved.length > 0 || localStorage.getItem("knowledge-quest.projects.v1") !== null) return saved;
   const sample = createSampleProject();
   repository.save(sample);
   return [sample];
@@ -47,7 +47,7 @@ export function App() {
       if (workspaceProjects.length === 0) return;
       setProjects((current) => {
         const byId = new Map(current.map((project) => [project.profile.id, project]));
-        workspaceProjects.forEach((project) => byId.set(project.profile.id, project));
+        workspaceProjects.filter((project) => !repository.isDeleted(project.profile.id)).forEach((project) => { if (!byId.has(project.profile.id)) byId.set(project.profile.id, project); });
         return [...byId.values()];
       });
     }).catch(() => undefined);
@@ -146,7 +146,28 @@ export function App() {
     if (next) setSelectedSkillId(next.id);
   }
 
-  if (!activeProject) return null;
+  function deleteProject(project: ProjectWorkspace) {
+    if (generationActive.current) { setError("请等待当前生成结束后再删除项目"); return; }
+    if (!window.confirm(`确定删除主题“${project.profile.title}”及其在应用中的学习记录？磁盘中的项目备份仍会保留。`)) return;
+    try {
+      repository.remove(project.profile.id);
+      const remaining = projects.filter(item => item.profile.id !== project.profile.id);
+      setProjects(remaining);
+      if (activeProjectId === project.profile.id) {
+        setActiveProjectId(remaining[0]?.profile.id);
+        setSelectedSkillId(getCurrentSkillId(remaining[0]?.runs ?? []) ?? skillManifests[0].id);
+        setShowMentor(false);
+      }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "删除项目失败"); }
+  }
+
+  if (!activeProject) return <div className="app-shell"><main>
+    <h1>开始新的学习主题</h1><p>暂无学习项目，创建一个主题开始学习。</p>
+    <div className="action-row"><button className="primary-button" onClick={startProjectCreation}>创建学习项目</button><button onClick={openProjectFolder}>打开已有项目</button><button onClick={() => setShowSettings(true)}>模型与设置</button></div>
+    {error && <p role="alert">{error}</p>}
+    {showWizard && <ProjectWizard projectId={pendingProjectId} onClose={() => setShowWizard(false)} onCreate={createProject} />}
+    {showSettings && <ModelSettingsModal onClose={() => setShowSettings(false)} />}
+  </main></div>;
   const orbStyle = { "--progress": String(progress * 3.6) + "deg" } as CSSProperties;
   const mentorContext = activeProject.profile.topic + "；目标：" + activeProject.profile.goal + "；当前 Skill：" + selectedSkill.name;
 
@@ -158,10 +179,10 @@ export function App() {
         <p className="sidebar-label">学习项目</p>
         <nav className="project-list">
           {projects.map((project) => (
-            <button className={project.profile.id === activeProject.profile.id ? "project-card active" : "project-card"} key={project.profile.id} onClick={() => { setActiveProjectId(project.profile.id); setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id); }}>
+            <div className="project-list-row" key={project.profile.id}><button className={project.profile.id === activeProject.profile.id ? "project-card active" : "project-card"} key={project.profile.id} onClick={() => { setActiveProjectId(project.profile.id); setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id); }}>
               <span className="project-icon">{project.profile.kind === "industry" ? "⌬" : "⌁"}</span>
               <span><strong>{project.profile.title}</strong><small>{calculateProgress(project.runs)}% · {project.profile.kind === "industry" ? "行业" : "技术"}</small></span>
-            </button>
+            </button><button className="project-delete" aria-label={"删除主题：" + project.profile.title} title="删除主题" disabled={Boolean(streaming)} onClick={() => deleteProject(project)}>×</button></div>
           ))}
         </nav>
         <div className="sidebar-footer"><button onClick={() => setShowLibrary(true)}>资料库</button><button onClick={openProjectFolder}>打开已有项目</button><button onClick={() => setShowSettings(true)}>模型与设置</button></div>

@@ -29,7 +29,13 @@ export class LocalProjectRepository {
     localStorage.setItem(storageKey, JSON.stringify(projects));
   }
 
+  isDeleted(projectId: string): boolean {
+    return (JSON.parse(localStorage.getItem("knowledge-quest.deleted-projects.v1") || "[]") as string[]).includes(projectId);
+  }
+
   remove(projectId: string): void {
+    const deleted = JSON.parse(localStorage.getItem("knowledge-quest.deleted-projects.v1") || "[]") as string[];
+    localStorage.setItem("knowledge-quest.deleted-projects.v1", JSON.stringify([...new Set([...deleted, projectId])]));
     localStorage.setItem(storageKey, JSON.stringify(this.list().filter((item) => item.profile.id !== projectId)));
   }
 }

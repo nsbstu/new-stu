@@ -220,3 +220,9 @@ main { padding: 0 34px 50px; overflow: hidden; }
   .library-artifact-card { grid-template-columns: 34px minmax(0, 1fr); }
   .library-status { grid-column: 2; justify-self: start; }
 }
+
+.project-list-row { display: flex; align-items: center; min-width: 0; }
+.project-list-row .project-card { flex: 1; min-width: 0; }
+.project-delete { flex: 0 0 28px; border: 0; background: transparent; color: #aab6cf; cursor: pointer; font-size: 22px; }
+.project-delete:hover { color: #ff8585; }
+.project-delete:disabled { opacity: .4; cursor: not-allowed; }
