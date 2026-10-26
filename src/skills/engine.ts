@@ -42,15 +42,27 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
 
   const transientStatuses = new Set([429, 502, 503, 504]);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await fetch(modelEndpoint(settings.baseUrl, "/chat/completions"), {
+    let response: Response;
+    try {
+      response = await fetch(modelEndpoint(settings.baseUrl, "/chat/completions"), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
       body: JSON.stringify({
         model: settings.model,
         temperature: settings.temperature,
+        max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
       }),
-    });
+      });
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      if (attempt === 2) {
+        throw new Error("模型请求未取得响应（已尝试 3 次）：" + error.message +
+          "。若测试连接成功但生成失败，请检查接口网关的长请求超时、网络连接，以及浏览器 Network 面板中的失败原因");
+      }
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 1000 * (attempt + 1)));
+      continue;
+    }
     if (response.ok) {
       const data = await response.json();
       const content = data?.choices?.[0]?.message?.content;
