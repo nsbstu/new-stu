@@ -48,7 +48,7 @@ sha256sum -c knowledge-quest-release-20261027.tar.gz.sha256
 sudo mkdir -p /var/www/knowledge-quest/releases/20261027
 sudo tar -xzf knowledge-quest-release-20261027.tar.gz -C /var/www/knowledge-quest/releases/20261027
 sudo chmod -R u=rwX,go=rX /var/www/knowledge-quest/releases/20261027
-sudo ln -s /var/www/knowledge-quest/releases/20261027/dist /var/www/knowledge-quest/current
+sudo ln -s /var/www/knowledge-quest/releases/20261027/dist /var/www/knowledge-quest/
 ```
 
 首次部署时 `current` 应不存在；已有部署请参照更新章节。站点根目录须指向包含 `index.html` 的 `dist`，不要指向外层发布目录。
