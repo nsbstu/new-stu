@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { ModelSettings } from "../domain/types";
 import { loadApiKey, loadModelSettings, modelEndpoint, normalizeModelBaseUrl, saveModelSettings } from "../ai/modelSettings";
 import { chooseWorkspaceDirectory, supportsProjectFolders, workspaceDisplayName } from "../storage/projectDirectory";
@@ -107,6 +107,7 @@ export function ModelSettingsModal({ onClose, onWorkspaceChanged }: { onClose: (
     <div className="modal-backdrop">
       <section className="modal settings-modal">
         <div className="modal-header"><div><p className="eyebrow">OpenAI 兼容接口</p><h2>模型配置</h2></div><button onClick={onClose}>×</button></div>
+        <p className="trial-banner">还没有大模型 Token？前往 <a href="https://vvcode.top" target="_blank" rel="noreferrer">vvcode.top</a> 免费领取，立即开始使用。</p>
         <label>接口地址<input value={settings.baseUrl} onChange={(event) => setSettings({ ...settings, baseUrl: event.target.value })} placeholder="https://api.openai.com/v1" /></label>
         <label>模型名称<div className="model-field-row"><input list="available-models" value={settings.model} onChange={(event) => setSettings({ ...settings, model: event.target.value })} placeholder="请输入准确的模型 ID，例如服务商 /models 返回的 id" /><button className="secondary-button" onClick={loadModels}>加载模型</button></div><datalist id="available-models">{modelOptions.map((model) => <option value={model} key={model} />)}</datalist></label>
         <label>API Key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="仅保存在当前会话，桌面版将使用 Windows 安全存储" /></label>
@@ -119,3 +120,4 @@ export function ModelSettingsModal({ onClose, onWorkspaceChanged }: { onClose: (
     </div>
   );
 }
+

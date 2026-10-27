@@ -226,3 +226,7 @@ main { padding: 0 34px 50px; overflow: hidden; }
 .project-delete { flex: 0 0 28px; border: 0; background: transparent; color: #aab6cf; cursor: pointer; font-size: 22px; }
 .project-delete:hover { color: #ff8585; }
 .project-delete:disabled { opacity: .4; cursor: not-allowed; }
+
+.trial-banner { margin: 14px 0 2px; padding: 10px 12px; border: 1px solid #34517a; border-radius: 10px; color: #b9c9e8; background: linear-gradient(135deg, #142744, #17213a); font-size: 12px; }
+.trial-banner a { color: #72d8ff; font-weight: 600; text-decoration: underline; }
+.trial-banner a:hover { color: #a6eaff; }
