@@ -1,0 +1,28 @@
+server {
+    listen 80;
+    server_name newstu.online;
+    return 301 https://newstu.online$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name newstu.online;
+    ssl_certificate /etc/nginx/newstu.online_bundle.crt;
+    ssl_certificate_key /etc/nginx/newstu.online.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    root /var/www/knowledge-quest;
+    index index.html;
+    charset utf-8;
+    add_header X-Content-Type-Options nosniff always;
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_vary on;
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+    }
+    location / {
+        try_files $uri $uri/ /index.html;
+        expires -1;
+    }
+}
