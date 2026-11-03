@@ -124,6 +124,11 @@ export async function saveProjectToDirectory(project: ProjectWorkspace) {
   const directory = await getHandle(project.profile.id);
   if (!directory) return false;
   if (directory.queryPermission && (await directory.queryPermission({ mode: "readwrite" })) !== "granted") return false;
+  await writeProject(directory, project);
+  return true;
+}
+
+async function writeProject(directory: DirectoryHandle, project: ProjectWorkspace) {
   await writeText(directory, "project.json", JSON.stringify(project, null, 2));
   await writeText(directory, "events.jsonl", JSON.stringify({ at: new Date().toISOString(), type: "project-saved", artifactCount: project.artifacts.length }) + "\n");
   const artifacts = await directory.getFileHandle("artifacts.json", { create: true });
@@ -134,7 +139,41 @@ export async function saveProjectToDirectory(project: ProjectWorkspace) {
     const backups = await directory.getDirectoryHandle("backups", { create: true });
     await writeText(backups, "latest.json", JSON.stringify(project, null, 2));
   }
-  return true;
+}
+
+export async function saveImportedProjectToWorkspace(project: ProjectWorkspace): Promise<string> {
+  const localOnly = "项目已导入并保存在当前浏览器。";
+  if (!supportsProjectFolders()) return localOnly + "此浏览器不支持目录访问，请定期导出备份。";
+  try {
+    const workspace = await getWorkspaceDirectory();
+    if (!workspace?.getDirectoryHandle) return localOnly + "尚未设置系统数据目录，未写入磁盘；可在模型与设置中选择目录后重新导入。";
+    if (workspace.queryPermission && await workspace.queryPermission({ mode: "readwrite" }) !== "granted") {
+      return localOnly + "系统数据目录需要重新授权，请在模型与设置中重新选择目录后再次导入。";
+    }
+    const projects = await workspace.getDirectoryHandle("projects", { create: true });
+    if (!projects.getDirectoryHandle) throw new Error("目录不可写");
+    let directory: DirectoryHandle | undefined;
+    // Match the full project ID, even if its title or folder name has changed.
+    // Do not reuse an old binding outside the currently configured workspace.
+    if (projects.entries) for await (const [, entry] of projects.entries()) {
+      if (!("getFileHandle" in entry)) continue;
+      try {
+        const saved = JSON.parse(await (await (await entry.getFileHandle("project.json")).getFile()).text());
+        if (saved.profile?.id === project.profile.id) { directory = entry; break; }
+      } catch { /* unrelated folder */ }
+    }
+    const updated = Boolean(directory);
+    if (!directory) {
+      const title = project.profile.title.replace(/[\\/:*?"<>|]/g, "-").trim() || "project";
+      // Full ID and encoded characters avoid collisions and path separators in imports.
+      directory = await projects.getDirectoryHandle(`${title.slice(0, 60)}-${encodeURIComponent(project.profile.id)}`, { create: true });
+    }
+    await writeProject(directory, project);
+    await putHandle(project.profile.id, directory);
+    return `项目已导入，已${updated ? "更新" : "创建"}系统数据目录中的项目：${workspace.name}/projects/${directory.name}。`;
+  } catch {
+    return localOnly + "系统数据目录写入未完成，请检查目录权限并重新导入；磁盘文件可能尚未完整更新。";
+  }
 }
 
 export async function openProjectFromDirectory() {

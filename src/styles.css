@@ -317,3 +317,47 @@ button:focus-visible, input:focus-visible { outline: 2px solid #91efff; outline-
   .mobile-step-list span { flex-shrink: 0; font-size: 11px; color: #a0b2d1; }
   .mobile-sheet { width: 100%; height: auto; max-height: 85dvh; align-self: flex-end; border-radius: 20px 20px 0 0; border-top: 1px solid #334361; }
 }
+
+/* Readable generated documents; wide structures scroll within the result. */
+.artifact-markdown { color: #c5d1e5; font-size: 14px; line-height: 1.85; overflow-wrap: anywhere; min-width: 0; }
+.artifact-markdown h1, .artifact-markdown h2, .artifact-markdown h3, .artifact-markdown h4 { color: #edf2ff; line-height: 1.5; margin: 1.6em 0 .65em; }
+.artifact-markdown h1 { font-size: 23px; }
+.artifact-markdown h2 { font-size: 20px; padding-bottom: 8px; border-bottom: 1px solid #30415f; }
+.artifact-markdown h3 { font-size: 17px; }
+.artifact-markdown h4 { font-size: 15px; }
+.artifact-markdown > :first-child { margin-top: 12px; }
+.artifact-markdown p { margin: .8em 0; }
+.artifact-markdown ul, .artifact-markdown ol { padding-left: 1.6em; }
+.artifact-markdown li { margin: .35em 0; }
+.artifact-markdown li > p { margin: .25em 0; }
+.artifact-markdown a { color: #90caff; text-underline-offset: 3px; }
+.artifact-markdown strong { color: #edf2ff; }
+.artifact-markdown blockquote { margin: 16px 0; padding: 4px 16px; border-left: 3px solid #8494ff; background: #17233b; color: #b6c7e3; }
+.artifact-markdown hr { border: 0; border-top: 1px solid #30415f; margin: 24px 0; }
+.artifact-markdown :not(pre) > code { padding: 2px 5px; border-radius: 4px; color: #b6deff; background: #1a2940; font-size: .9em; }
+.artifact-view .artifact-markdown pre { max-height: 480px; margin: 12px 0; padding: 14px; overflow: auto; white-space: pre; overflow-wrap: normal; font: 12px/1.8 ui-monospace, Consolas, monospace; tab-size: 2; }
+.artifact-table-scroll { max-width: 100%; overflow-x: auto; margin: 18px 0; border: 1px solid #344563; border-radius: 10px; scrollbar-gutter: stable; }
+.artifact-markdown table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.75; }
+.artifact-markdown th, .artifact-markdown td { min-width: 120px; max-width: 360px; padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid #2b3a55; }
+.artifact-markdown th { color: #edf2ff; background: #20304d; font-weight: 700; }
+.artifact-markdown tbody tr:nth-child(even) { background: #131f34; }
+.artifact-markdown tbody tr:last-child td { border-bottom: 0; }
+.artifact-diagram { margin: 18px 0; padding: 14px; background: #111b2c; border: 1px solid #344563; border-radius: 10px; }
+.artifact-diagram figcaption { color: #d8e4fa; font-weight: 600; margin-bottom: 12px; }
+.artifact-diagram figcaption span { display: block; font-size: 11px; font-weight: 400; color: #9dacc7; }
+.diagram-scroll { overflow: auto; max-width: 100%; max-height: 650px; padding: 8px; }
+.diagram-scroll svg { display: block; margin: auto; min-width: 280px; }
+.artifact-diagram details { margin-top: 12px; font-size: 12px; }
+.artifact-diagram summary { cursor: pointer; color: #9eb5dc; }
+.diagram-status { color: #a6b7d4; }
+.import-status { display: flex; align-items: start; gap: 12px; padding: 12px; margin-top: 10px; border: 1px solid #396756; border-radius: 10px; color: #b4e4d2; background: #142e2a; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.import-status span { flex: 1; min-width: 0; }
+.import-status button { flex-shrink: 0; min-width: 36px; min-height: 36px; color: inherit; border: 0; background: transparent; font-size: 20px; }
+@media (max-width: 850px) { .project-open .skill-panel > .import-status { flex: 0 1 auto; max-height: 120px; overflow-y: auto; } }
+@media (max-width: 850px) {
+  .artifact-markdown { font-size: 15px; line-height: 1.9; }
+  .artifact-markdown h2 { font-size: 19px; }
+  .artifact-markdown th, .artifact-markdown td { min-width: 130px; padding: 10px 12px; }
+  .project-open .artifact-view .artifact-markdown pre { max-height: 400px; overflow: auto; }
+  .artifact-diagram { padding: 10px; }
+}

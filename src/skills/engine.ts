@@ -39,6 +39,7 @@ async function callConfiguredModel(project: ProjectWorkspace, skill: SkillManife
     "必须输出的部分：" + skill.outputSections.join("、"),
     "上游已确认成果：\n" + (upstreamText || "无，这是第一步。"),
     "请输出中文 Markdown。明确区分事实、推断和待验证问题，并在最后提供向下一步传递的摘要。",
+    "排版要求：使用二、三级标题组织内容，不要把全文包进代码块。对比、资源评分、等级和计划使用标准 Markdown 表格（包含表头和分隔行），每个表格尽量不超过五列，单元格保持简短，详细解释放在表格后。流程、依赖和冲突关系适合图示时，使用带 mermaid 语言标记的代码块，优先 flowchart TD；节点使用简短中文标签并用双引号包裹，图示后附文字说明。不要用 ASCII 字符画或 HTML 表格。",
   ].join("\n\n");
 
   const transientStatuses = new Set([429, 502, 503, 504]);

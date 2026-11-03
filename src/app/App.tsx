@@ -9,9 +9,10 @@ import { ProjectWizard } from "../components/ProjectWizard";
 import { ModelSettingsModal } from "../components/ModelSettingsModal";
 import { MentorChat } from "../components/MentorChat";
 import { isModelConfigured } from "../ai/modelSettings";
-import { createProjectDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
+import { createProjectDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, saveImportedProjectToWorkspace, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
 import { parseProjectBackup, downloadProjectBackup } from "../storage/projectBackup";
 import { createId } from "../utils/id";
+import { ArtifactContent } from "../components/ArtifactContent";
 import { MobilePanel } from "../components/MobilePanel";
 
 const statusLabels: Record<SkillStatus, string> = {
@@ -44,6 +45,9 @@ export function App() {
   const importInput = useRef<HTMLInputElement>(null);
   const [streaming, setStreaming] = useState<{ projectId: string; skillId: string; content: string }>();
   const [error, setError] = useState("");
+  const [importStatus, setImportStatus] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importActive = useRef(false);
   const [mobilePanel, setMobilePanel] = useState<"config" | "steps">();
   const [mobileTab, setMobileTab] = useState<"task" | "result" | "review">("task");
   const skillContent = useRef<HTMLDivElement>(null);
@@ -100,7 +104,10 @@ export function App() {
   }
 
   async function importBackup(file?: File) {
-    if (!file) return;
+    if (!file || importActive.current) return;
+    importActive.current = true;
+    setImporting(true);
+    setImportStatus("");
     try {
       if (generationActive.current) throw new Error("请等待当前生成结束后再导入项目");
       if (file.size > 20 * 1024 * 1024) throw new Error("备份文件不能超过 20 MB");
@@ -110,8 +117,23 @@ export function App() {
       setProjects(current => [project, ...current.filter(item => item.profile.id !== project.profile.id)]);
       setActiveProjectId(project.profile.id);
       setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id);
+      setMobilePanel(undefined);
+      setMobileTab("task");
       setError("");
+      setImportStatus("项目已保存在浏览器，正在检查系统数据目录…");
+      const saveStatus = await saveImportedProjectToWorkspace(project);
+      setImportStatus(saveStatus + " PC 与手机备份通用，可继续学习后再次导出。模型 API Key 不随备份迁移，需要在本设备配置。");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "导入失败"); }
+    finally { importActive.current = false; setImporting(false); }
+  }
+
+  function exportBackup(project: ProjectWorkspace) {
+    try {
+      const filename = downloadProjectBackup(project);
+      setImportStatus(`已发起备份下载：${filename}。请在浏览器下载列表或手机“文件”中确认保存，再传到另一设备，通过“导入项目备份”继续学习。备份不包含模型 API Key。`);
+      setMobilePanel(undefined);
+      setError("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "导出失败"); }
   }
 
   const backupInput = <input ref={importInput} type="file" accept=".json,application/json" hidden aria-label="导入项目备份" onChange={event => { void importBackup(event.target.files?.[0]); event.target.value = ""; }} />;
@@ -130,7 +152,7 @@ export function App() {
   }
 
   async function generateSelectedSkill() {
-    if (generationActive.current || !activeProject || !selectedRun || selectedRun.status === "locked" || selectedRun.status === "running") return;
+    if (importActive.current || generationActive.current || !activeProject || !selectedRun || selectedRun.status === "locked" || selectedRun.status === "running") return;
     setError("");
     const runningProject: ProjectWorkspace = {
       ...activeProject,
@@ -159,7 +181,7 @@ export function App() {
   }
 
   function confirmSelectedArtifact() {
-    if (generationActive.current || !activeProject || !selectedArtifact || selectedArtifact.status !== "draft") return;
+    if (importActive.current || generationActive.current || !activeProject || !selectedArtifact || selectedArtifact.status !== "draft") return;
     const now = new Date().toISOString();
     const artifacts = activeProject.artifacts.map((artifact) => artifact.id === selectedArtifact.id ? { ...artifact, status: "confirmed" as const, confirmedAt: now } : artifact);
     const updated: ProjectWorkspace = {
@@ -174,6 +196,7 @@ export function App() {
   }
 
   function deleteProject(project: ProjectWorkspace) {
+    if (importActive.current) { setError("请等待导入保存完成后再删除项目"); return; }
     if (generationActive.current) { setError("请等待当前生成结束后再删除项目"); return; }
     if (!window.confirm(`确定删除主题“${project.profile.title}”及其在应用中的学习记录？磁盘中的项目备份仍会保留。`)) return;
     try {
@@ -219,7 +242,7 @@ export function App() {
             </button><button className="project-delete" aria-label={"删除主题：" + project.profile.title} title="删除主题" disabled={Boolean(streaming)} onClick={() => deleteProject(project)}>×</button></div>
           ))}
         </nav>
-        <div className="sidebar-footer"><button onClick={() => setShowLibrary(true)}>资料库</button><button onClick={() => downloadProjectBackup(activeProject)}>导出当前项目</button><button onClick={() => importInput.current?.click()}>导入项目备份</button>{supportsProjectFolders() && <button onClick={openProjectFolder}>打开项目目录</button>}<button onClick={() => setShowSettings(true)}>模型与设置</button></div>
+        <div className="sidebar-footer"><button onClick={() => setShowLibrary(true)}>资料库</button><button onClick={() => exportBackup(activeProject)}>导出当前项目</button><button onClick={() => importInput.current?.click()}>导入项目备份</button>{supportsProjectFolders() && <button onClick={openProjectFolder}>打开项目目录</button>}<button onClick={() => setShowSettings(true)}>模型与设置</button></div>
       </aside>
 
       <main>
@@ -257,10 +280,11 @@ export function App() {
             <div className="mission-block"><h3>本关预期产出</h3><div className="output-tags">{selectedSkill.outputSections.map((section) => <span key={section}>{section}</span>)}</div></div>
             </div>
             <div className="skill-result">
-            {selectedRun?.status === "running" && streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><pre>{streaming.content || "正在等待模型输出…"}</pre></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
+            {selectedRun?.status === "running" && streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><ArtifactContent content={streaming.content || "正在等待模型输出…"} streaming /></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
             </div>
             </div>
             {error && <p className="error-message" role="alert">{error}</p>}
+            {importStatus && <div className="import-status" role="status"><span>{importStatus}</span>{!importing && <button aria-label="关闭导入提示" onClick={() => setImportStatus("")}>×</button>}</div>}
             <div className="action-row"><span className={isModelConfigured() ? "model-state configured" : "model-state"}>{isModelConfigured() ? "● 已配置模型" : "○ 未配置模型，将使用本地兜底内容"}</span><button className="secondary-button" onClick={() => setShowSettings(true)}>模型配置</button><button className="secondary-button" disabled={selectedRun?.status === "locked" || selectedRun?.status === "running"} onClick={generateSelectedSkill}>{selectedRun?.status === "running" ? "生成中…" : selectedArtifact ? "重新生成" : "生成本关成果"}</button><button className="primary-button" disabled={selectedRun?.status === "running" || !selectedArtifact || selectedArtifact.status !== "draft"} onClick={confirmSelectedArtifact}>确认并进入下一关</button></div>
           </article>
 
@@ -284,7 +308,7 @@ export function App() {
         {mobilePanel === "config" ? <div className="mobile-config-actions">
           <button onClick={() => { setMobilePanel(undefined); void startProjectCreation(); }}>＋ 创建学习项目</button>
           <button onClick={() => { setMobilePanel(undefined); setShowLibrary(true); }}>资料库</button>
-          <button onClick={() => downloadProjectBackup(activeProject)}>导出当前项目</button>
+          <button onClick={() => exportBackup(activeProject)}>导出当前项目</button>
           <button disabled={Boolean(streaming)} onClick={() => { setMobilePanel(undefined); importInput.current?.click(); }}>导入项目备份</button>
           <button disabled={!supportsProjectFolders() || Boolean(streaming)} onClick={() => { setMobilePanel(undefined); void openProjectFolder(); }}>{supportsProjectFolders() ? "打开项目目录" : "打开项目目录（此浏览器不支持）"}</button>
           <button onClick={() => { setMobilePanel(undefined); setShowSettings(true); }}>模型设置</button>
@@ -332,7 +356,7 @@ function LibraryModal({ projects, onClose, onOpenArtifact }: { projects: Project
 }
 
 function ArtifactView({ artifact }: { artifact: SkillArtifact }) {
-  return <div className="artifact-view"><div className="artifact-heading"><div><p className="eyebrow">生成成果 · Revision {artifact.revision}</p><h3>{artifact.title}</h3></div><span className={artifact.status === "confirmed" ? "confirmed" : "draft"}>{artifact.status === "confirmed" ? "已确认" : "草稿"}</span></div><p className="artifact-source">生成方式：{artifact.generatedBy === "configured-model" ? "已配置模型" : "本地兜底模板"} · 使用上游成果 {artifact.upstreamArtifactIds.length} 项</p>{artifact.generationWarning && <p className="fallback-warning"><strong>模型暂时不可用</strong>{artifact.generationWarning}。系统已保留本地草稿，你可以稍后重新生成。</p>}<pre>{artifact.content}</pre><div className="reflection-preview"><div className="reflection-header"><span>✧</span><div><strong>反思报告 · {artifact.reflection.overallScore} 分</strong><small>{artifact.reflection.passed ? "达到质量阈值" : "尚未达到正式质量阈值"}</small></div></div><Score label="完整性" value={artifact.reflection.scores.completeness} /><Score label="证据可靠性" value={artifact.reflection.scores.evidenceReliability} /><Score label="逻辑一致性" value={artifact.reflection.scores.logicalConsistency} />{artifact.reflection.weaknesses.length > 0 && <ul>{artifact.reflection.weaknesses.map((item) => <li key={item}>{item}</li>)}</ul>}</div></div>;
+  return <div className="artifact-view"><div className="artifact-heading"><div><p className="eyebrow">生成成果 · Revision {artifact.revision}</p><h3>{artifact.title}</h3></div><span className={artifact.status === "confirmed" ? "confirmed" : "draft"}>{artifact.status === "confirmed" ? "已确认" : "草稿"}</span></div><p className="artifact-source">生成方式：{artifact.generatedBy === "configured-model" ? "已配置模型" : "本地兜底模板"} · 使用上游成果 {artifact.upstreamArtifactIds.length} 项</p>{artifact.generationWarning && <p className="fallback-warning"><strong>模型暂时不可用</strong>{artifact.generationWarning}。系统已保留本地草稿，你可以稍后重新生成。</p>}<ArtifactContent content={artifact.content} /><div className="reflection-preview"><div className="reflection-header"><span>✧</span><div><strong>反思报告 · {artifact.reflection.overallScore} 分</strong><small>{artifact.reflection.passed ? "达到质量阈值" : "尚未达到正式质量阈值"}</small></div></div><Score label="完整性" value={artifact.reflection.scores.completeness} /><Score label="证据可靠性" value={artifact.reflection.scores.evidenceReliability} /><Score label="逻辑一致性" value={artifact.reflection.scores.logicalConsistency} />{artifact.reflection.weaknesses.length > 0 && <ul>{artifact.reflection.weaknesses.map((item) => <li key={item}>{item}</li>)}</ul>}</div></div>;
 }
 
 function Score({ label, value }: { label: string; value: number }) {
