@@ -1,0 +1,66 @@
+<div id="kq-mobile-plans">
+<style>
+#kq-mobile-plans { --kq-bg:light-dark(#fafafa,#10151f); --kq-ink:light-dark(#252a34,#edf0f5); --kq-line:light-dark(#c6cbd2,#526073); --kq-panel:light-dark(#f0f1f3,#202938); --kq-accent:light-dark(#34425b,#bacce8); color:var(--kq-ink); font:14px/1.6 system-ui,sans-serif; }
+#kq-mobile-plans .stage { min-height:710px; padding:18px 0; }
+#kq-mobile-plans .phone { width:min(370px,100%); margin:auto; height:650px; border:2px solid var(--kq-line); border-radius:24px; background:var(--kq-bg); position:relative; overflow:hidden; display:flex; flex-direction:column; }
+#kq-mobile-plans .bar { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--kq-line); }
+#kq-mobile-plans button { font:inherit; background:var(--kq-bg); color:var(--kq-ink); border:1px solid var(--kq-line); border-radius:7px; padding:8px 12px; min-height:44px; }
+#kq-mobile-plans .main-action { background:var(--kq-accent); color:var(--kq-bg); flex:1; }
+#kq-mobile-plans .content { padding:16px; flex:1; min-height:0; overflow:auto; }
+#kq-mobile-plans .label { font-size:12px; opacity:.75; }
+#kq-mobile-plans h3 { font-size:19px; margin:8px 0; }
+#kq-mobile-plans .block { border:1px dashed var(--kq-line); padding:16px; margin:14px 0; }
+#kq-mobile-plans .steps { display:flex; gap:6px; padding:12px 16px; overflow:auto; border-bottom:1px solid var(--kq-line); }
+#kq-mobile-plans .steps button { flex-shrink:0; padding:6px 10px; }
+#kq-mobile-plans button[aria-pressed="true"] { border:2px solid var(--kq-ink); font-weight:700; }
+#kq-mobile-plans .dock { border-top:1px solid var(--kq-line); padding:12px 16px 18px; background:var(--kq-panel); }
+#kq-mobile-plans .actions { display:flex; gap:8px; margin-top:8px; }
+#kq-mobile-plans .overlay { position:absolute; inset:0; background:light-dark(#252a3466,#0008); z-index:3; }
+#kq-mobile-plans .drawer { position:absolute; right:0; top:0; bottom:0; width:86%; background:var(--kq-bg); padding:18px; display:flex; flex-direction:column; gap:10px; border-left:1px solid var(--kq-line); }
+#kq-mobile-plans .drawer button { text-align:left; }
+#kq-mobile-plans .drawer .close { align-self:flex-end; }
+#kq-mobile-plans .sheet { position:absolute; bottom:0; left:0; right:0; background:var(--kq-bg); padding:18px; border-top:1px solid var(--kq-line); border-radius:18px 18px 0 0; }
+#kq-mobile-plans .sheet button { width:100%; text-align:left; margin-top:6px; }
+#kq-mobile-plans [hidden] { display:none!important; }
+#kq-mobile-plans .tabs { display:flex; gap:8px; margin:14px 0; }
+</style>
+<div class="viz-carousel viz-dotted-background" aria-label="手机布局方案" data-previous-label="上一方案" data-next-label="下一方案">
+<section data-variant="紧凑工作台" aria-label="紧凑工作台方案">
+<div class="stage"><div class="phone" data-plan="compact">
+  <div class="bar"><button class="cursor-interaction" data-project>新能源行业 ▾</button><button class="cursor-interaction" data-config aria-label="配置"><i data-lucide="settings" aria-hidden="true"></i></button></div>
+  <div class="steps" aria-label="横向关卡导航"><button class="cursor-interaction" data-step="1" aria-pressed="true">① 视角</button><button class="cursor-interaction" data-step="2" aria-pressed="false">② 研究</button><button class="cursor-interaction" data-step="3" aria-pressed="false">③ 地图</button><button class="cursor-interaction" data-step="4" aria-pressed="false">④ 拆解</button><button class="cursor-interaction" data-all>全部 8 关</button></div>
+  <div class="content"><div class="label">已完成 0 / 8 · 项目目标收起</div><h3 data-title>第 1 关 · 视角风暴</h3><p>结合学习目标，建立多角度的问题框架。</p><details><summary>查看本关输入与预期产出</summary><p>输入：项目访谈档案<br>产出：关键问题、研究视角与假设</p></details><div class="block" data-result><strong>本关成果</strong><p>生成后在此阅读全文。</p><p class="label">内容区域独立滚动，底部操作始终可见。</p></div><details><summary>反思报告与版本记录</summary><p>生成后展示评分和改进建议。</p></details></div>
+  <div class="dock"><div class="label" data-status>第 1 / 8 关 · 可生成</div><div class="actions"><button class="main-action cursor-interaction" data-generate>生成本关成果</button><button class="cursor-interaction" data-confirm disabled>确认 / 下一关</button></div></div>
+</div></div>
+</section>
+<section data-variant="单关专注" aria-label="单关专注方案" hidden>
+<div class="stage"><div class="phone" data-plan="focus">
+  <div class="bar"><button class="cursor-interaction" data-project>新能源行业 ▾</button><button class="cursor-interaction" data-config aria-label="配置"><i data-lucide="settings" aria-hidden="true"></i></button></div>
+  <div class="bar"><strong data-title>第 1 关 · 视角风暴</strong><button class="cursor-interaction" data-all>1 / 8 ▾</button></div>
+  <div class="content"><div class="tabs"><button class="cursor-interaction" data-tab="task" aria-pressed="true">任务</button><button class="cursor-interaction" data-tab="result" aria-pressed="false">成果</button><button class="cursor-interaction" data-tab="review" aria-pressed="false">反思</button></div><div data-pane="task"><h3>本关要做什么</h3><p>从多个视角拆解学习主题，确定后续研究方向。</p><div class="block"><strong>输入</strong><p>已填写的项目目标和基础水平</p><strong>预期产出</strong><p>关键问题 · 研究视角 · 初始假设</p></div></div><div data-pane="result" hidden><h3>本关成果</h3><div class="block" data-result>尚未生成</div></div><div data-pane="review" hidden><h3>反思与质量检查</h3><p>生成后查看评分、问题与改进建议。</p></div></div>
+  <div class="dock"><div class="label" data-status>当前关卡 · 可生成</div><div class="actions"><button class="cursor-interaction" data-all>关卡</button><button class="main-action cursor-interaction" data-generate>生成本关成果</button></div></div>
+</div></div>
+</section>
+</div>
+<template id="kq-config-template"><div class="overlay"><section class="drawer" role="dialog" aria-label="项目配置"><button class="close cursor-interaction" data-close aria-label="关闭配置">关闭 ×</button><h3>项目与配置</h3><button class="cursor-interaction" data-menu>资料库</button><button class="cursor-interaction" data-menu>导出当前项目</button><button class="cursor-interaction" data-menu>导入项目备份</button><button disabled>打开项目目录（此设备不支持）</button><button class="cursor-interaction" data-menu>模型设置</button><p class="label" data-feedback>记录自动保存在当前浏览器</p></section></div></template>
+<script>
+(() => {
+ const root=document.getElementById('kq-mobile-plans');
+ const names=['视角风暴','深度研究','知识地图','知识拆解','关键问题','实践应用','知识整合','学习复盘'];
+ root.querySelectorAll('.phone').forEach(phone=>{
+  let current=1, generated=false;
+  const status=phone.querySelector('[data-status]');
+  function tab(name){phone.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===name)));phone.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==name);}
+  function select(n){current=n;generated=false;phone.querySelector('[data-title]').textContent=`第 ${n} 关 · ${names[n-1]}`;status.textContent=`第 ${n} / 8 关 · ${n===1?'可生成':'前置关卡确认后解锁'}`;phone.querySelector('[data-result]').textContent='尚未生成本关成果';phone.querySelector('[data-generate]').textContent='生成本关成果';phone.querySelectorAll('[data-step]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.step)===n)));const c=phone.querySelector('[data-confirm]');if(c)c.disabled=true;tab('task');}
+  phone.querySelector('[data-config]').onclick=()=>{const overlay=root.querySelector('template').content.firstElementChild.cloneNode(true);phone.append(overlay);overlay.querySelector('[data-close]').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});overlay.querySelectorAll('[data-menu]').forEach(b=>b.onclick=()=>overlay.querySelector('[data-feedback]').textContent=b.textContent+' · 此处为结构演示');};
+  phone.querySelector('[data-project]').onclick=()=>showSheet(true);
+  function showSheet(projects=false){const overlay=document.createElement('div');overlay.className='overlay';const sheet=document.createElement('section');sheet.className='sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-label',projects?'切换项目':'选择关卡');const heading=document.createElement('strong');heading.textContent=projects?'学习项目':'全部关卡 · 点击预览位置';sheet.append(heading);(projects?['新能源行业（当前）','＋ 创建学习项目']:names).forEach((name,i)=>{const b=document.createElement('button');b.className='cursor-interaction';b.textContent=projects?name:`${i+1}. ${name}${i?' · 待解锁':' · 当前'}`;b.onclick=()=>{if(!projects)select(i+1);overlay.remove();};sheet.append(b);});const close=document.createElement('button');close.textContent='关闭';close.onclick=()=>overlay.remove();sheet.append(close);overlay.append(sheet);phone.append(overlay);overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};}
+  phone.querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>showSheet());
+  phone.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>select(Number(b.dataset.step)));
+  phone.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+  phone.querySelector('[data-generate]').onclick=()=>{if(current!==1){status.textContent='结构演示：请先完成前置关卡';return;}if(generated&&phone.dataset.plan==='focus'){select(2);return;}generated=true;phone.querySelector('[data-result]').textContent='示例成果：从产业链、用户需求、技术趋势和竞争格局四个视角建立研究框架。这里展示完整成果，阅读时无需寻找操作按钮。';status.textContent='生成完成 · 待确认（演示）';phone.querySelector('[data-generate]').textContent=phone.dataset.plan==='focus'?'确认成果并进入下一关':'重新生成';const c=phone.querySelector('[data-confirm]');if(c)c.disabled=false;tab('result');};
+  const confirm=phone.querySelector('[data-confirm]');if(confirm)confirm.onclick=()=>select(Math.min(8,current+1));
+ });
+})();
+</script>
+</div>

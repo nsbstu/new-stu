@@ -230,6 +230,7 @@ main { padding: 0 34px 50px; overflow: hidden; }
 .trial-banner { margin: 14px 0 2px; padding: 10px 12px; border: 1px solid #34517a; border-radius: 10px; color: #b9c9e8; background: linear-gradient(135deg, #142744, #17213a); font-size: 12px; }
 .trial-banner a { color: #72d8ff; font-weight: 600; text-decoration: underline; }
 .trial-banner a:hover { color: #a6eaff; }
+.mobile-project-header, .mobile-skill-heading, .mobile-workspace-tabs, .mobile-action-dock, .mobile-panel-backdrop { display: none; }
 /* Mobile workspace: shrink grid children and keep controls reachable. */
 .storage-hint { color: #91a1c0; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 main, .hero-copy, .node-copy, .skill-title-row > div, .workspace-setting > div { min-width: 0; }
@@ -271,4 +272,48 @@ button:focus-visible, input:focus-visible { outline: 2px solid #91efff; outline-
   .topbar { flex-wrap: wrap; }
   .hero-card { flex-wrap: wrap; }
   .model-field-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Project focus mode is scoped to mobile projects; the empty state stays unchanged. */
+@media (max-width: 850px) {
+  .project-open { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .project-open > .sidebar, .project-open main > .topbar, .project-open .hero-card, .project-open .quest-map-section { display: none; }
+  .mobile-project-header { display: flex; flex: 0 0 auto; gap: 12px; align-items: center; justify-content: space-between; padding: max(12px, env(safe-area-inset-top)) 16px 12px; background: #0d1526; border-bottom: 1px solid #273452; }
+  .mobile-project-header select { min-width: 0; flex: 1; min-height: 44px; padding: 8px 10px; border: 1px solid #334361; border-radius: 10px; color: #eaf0ff; background: #141e33; font: inherit; font-size: 16px; text-overflow: ellipsis; }
+  .mobile-project-header .icon-button { flex-shrink: 0; width: 44px; height: 44px; display: grid; place-items: center; }
+  .project-open main { padding: 0; flex: 1; min-height: 0; overflow: hidden; }
+  .project-open .workspace-grid { height: 100%; margin: 0; display: flex; }
+  .project-open .skill-panel { width: 100%; padding: 16px; border: 0; border-radius: 0; display: flex; flex-direction: column; min-height: 0; }
+  .project-open .skill-title-row { flex: 0 0 auto; gap: 10px; margin: 10px 0 14px; }
+  .project-open .skill-title-row .eyebrow, .project-open .skill-title-row .status-pill { display: none; }
+  .project-open .skill-title-row h2 { font-size: 20px; }
+  .mobile-skill-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #91a1c0; font-size: 12px; }
+  .mobile-skill-heading button { min-height: 44px; }
+  .mobile-workspace-tabs { display: flex; gap: 8px; flex: 0 0 auto; margin-bottom: 12px; }
+  .mobile-workspace-tabs button { flex: 1; min-height: 44px; padding: 8px; color: #a7b6d1; background: #142039; border: 1px solid #2d3d5e; border-radius: 10px; }
+  .mobile-workspace-tabs button[aria-selected="true"] { color: #eaf0ff; background: #2b356a; border-color: #7d8cff; }
+  .project-open .skill-content { flex: 1; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; overscroll-behavior: contain; padding-bottom: 16px; }
+  .mobile-tab-task .skill-result, .mobile-tab-result .skill-task, .mobile-tab-review .skill-task { display: none; }
+  .mobile-tab-result .artifact-view > .reflection-preview { display: none; }
+  .mobile-tab-review .artifact-view > :not(.reflection-preview) { display: none; }
+  .project-open .artifact-view { margin-top: 0; }
+  .project-open .artifact-view pre { max-height: none; overflow: visible; }
+  .project-open .skill-panel > .action-row { display: none; }
+  .project-open .skill-panel > .error-message { flex: 0 0 auto; max-height: 80px; overflow-y: auto; margin: 8px 0 0; }
+  .mobile-action-dock { display: block; flex: 0 0 auto; padding: 10px 16px max(12px, env(safe-area-inset-bottom)); background: #101a2e; border-top: 1px solid #334361; }
+  .mobile-action-dock > span { display: block; color: #a3b4d1; font-size: 11px; margin-bottom: 8px; }
+  .mobile-action-dock > div { display: flex; gap: 8px; }
+  .mobile-action-dock button { min-height: 46px; padding: 10px; }
+  .mobile-action-dock .primary-button { flex: 1; }
+  .mobile-action-dock button:disabled, .mobile-config-actions button:disabled { opacity: .45; cursor: not-allowed; }
+  .mobile-panel-backdrop { display: flex; justify-content: flex-end; position: fixed; inset: 0; z-index: 48; background: #030711bb; }
+  .mobile-panel { width: min(360px, 90vw); height: 100%; overflow-y: auto; padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); border-left: 1px solid #334361; background: #10182b; overscroll-behavior: contain; }
+  .mobile-panel h2 { margin: 0; font-size: 19px; }
+  .mobile-config-actions, .mobile-step-list { display: grid; gap: 8px; margin-top: 20px; }
+  .mobile-config-actions > button, .mobile-step-list > button { min-height: 48px; padding: 12px; border: 1px solid #2c3b5c; border-radius: 10px; color: #c7d3eb; background: #162139; text-align: left; font: inherit; }
+  .mobile-step-list > button { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .mobile-step-list > button[aria-current="step"] { border-color: #8494ff; background: #26325a; }
+  .mobile-step-list strong { font-size: 13px; }
+  .mobile-step-list span { flex-shrink: 0; font-size: 11px; color: #a0b2d1; }
+  .mobile-sheet { width: 100%; height: auto; max-height: 85dvh; align-self: flex-end; border-radius: 20px 20px 0 0; border-top: 1px solid #334361; }
 }

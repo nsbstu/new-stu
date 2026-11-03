@@ -12,6 +12,7 @@ import { isModelConfigured } from "../ai/modelSettings";
 import { createProjectDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
 import { parseProjectBackup, downloadProjectBackup } from "../storage/projectBackup";
 import { createId } from "../utils/id";
+import { MobilePanel } from "../components/MobilePanel";
 
 const statusLabels: Record<SkillStatus, string> = {
   locked: "未解锁", ready: "可开始", running: "生成中", reviewing: "反思中",
@@ -43,6 +44,12 @@ export function App() {
   const importInput = useRef<HTMLInputElement>(null);
   const [streaming, setStreaming] = useState<{ projectId: string; skillId: string; content: string }>();
   const [error, setError] = useState("");
+  const [mobilePanel, setMobilePanel] = useState<"config" | "steps">();
+  const [mobileTab, setMobileTab] = useState<"task" | "result" | "review">("task");
+  const skillContent = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMobileTab("task"); }, [activeProjectId, selectedSkillId]);
+  useEffect(() => { if (skillContent.current) skillContent.current.scrollTop = 0; }, [activeProjectId, selectedSkillId, mobileTab]);
 
   useEffect(() => {
     void scanWorkspaceProjects().then((workspaceProjects) => {
@@ -130,6 +137,7 @@ export function App() {
       runs: activeProject.runs.map((run) => run.skillId === selectedSkill.id ? { ...run, status: "running" } : run),
     };
     generationActive.current = true;
+    setMobileTab("result");
     setStreaming({ projectId: activeProject.profile.id, skillId: selectedSkill.id, content: "" });
     persistProject(runningProject);
     try {
@@ -191,8 +199,14 @@ export function App() {
   const mentorContext = activeProject.profile.topic + "；目标：" + activeProject.profile.goal + "；当前 Skill：" + selectedSkill.name;
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell project-open mobile-tab-" + mobileTab}>
       {backupInput}
+      <header className="mobile-project-header">
+        <select aria-label="切换学习项目" value={activeProject.profile.id} onChange={event => { const project = projects.find(item => item.profile.id === event.target.value)!; setActiveProjectId(project.profile.id); setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id); }}>
+          {projects.map(project => <option key={project.profile.id} value={project.profile.id}>{project.profile.title}</option>)}
+        </select>
+        <button className="icon-button" aria-label="项目配置" onClick={() => setMobilePanel("config")}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 3-1 2 2 3-1 1-3 3-1 2-3-2-2 1-3-3-2-3 1-2-2Z"/><circle cx="12" cy="11" r="3"/></svg></button>
+      </header>
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">KQ</div><div><strong>Knowledge Quest</strong><span>知识征途</span></div></div>
         <button className="primary-button new-project" onClick={startProjectCreation}><span>＋</span> 创建学习项目</button>
@@ -231,12 +245,22 @@ export function App() {
 
         <section className="workspace-grid">
           <article className="skill-panel">
+            <div className="mobile-skill-heading"><span>第 {selectedSkill.order} / {skillManifests.length} 关 · {statusLabels[selectedRun?.status ?? "locked"]}</span><button className="secondary-button" onClick={() => setMobilePanel("steps")}>全部关卡 ▾</button></div>
             <div className="skill-title-row"><span className="large-skill-icon" style={{ color: selectedSkill.color }}>{selectedSkill.icon}</span><div><p className="eyebrow">Skill {selectedSkill.order}</p><h2>{selectedSkill.name}</h2></div><span className={"status-pill " + (selectedRun?.status ?? "locked")}>{statusLabels[selectedRun?.status ?? "locked"]}</span></div>
+            <div className="mobile-workspace-tabs" role="tablist" aria-label="关卡内容">
+              {([['task', '任务'], ['result', '成果'], ['review', '反思']] as const).map(([tab, label]) => <button key={tab} id={"mobile-tab-" + tab} role="tab" aria-selected={mobileTab === tab} aria-controls="skill-content" onClick={() => setMobileTab(tab)}>{label}</button>)}
+            </div>
+            <div ref={skillContent} id="skill-content" className="skill-content" role="tabpanel" aria-labelledby={"mobile-tab-" + mobileTab}>
+            <div className="skill-task">
             <p className="skill-description">{selectedSkill.description}</p>
             <div className="input-context"><strong>本步输入</strong><span>{selectedSkill.order === 1 ? "项目访谈档案" : "前序已确认成果 " + activeProject.artifacts.filter((artifact) => artifact.status === "confirmed" && skillManifests.find((skill) => skill.id === artifact.skillId)!.order < selectedSkill.order).length + " 项"}</span></div>
             <div className="mission-block"><h3>本关预期产出</h3><div className="output-tags">{selectedSkill.outputSections.map((section) => <span key={section}>{section}</span>)}</div></div>
+            </div>
+            <div className="skill-result">
             {selectedRun?.status === "running" && streaming?.projectId === activeProject.profile.id && streaming.skillId === selectedSkillId ? <div className="artifact-view" aria-live="polite"><h3>正在生成…</h3><pre>{streaming.content || "正在等待模型输出…"}</pre></div> : selectedArtifact ? <ArtifactView artifact={selectedArtifact} /> : <div className="empty-artifact"><span>◇</span><h3>尚未生成本关成果</h3><p>生成时会结合项目档案和所有上游已确认成果，并执行反思检查。</p></div>}
-            {error && <p className="error-message">{error}</p>}
+            </div>
+            </div>
+            {error && <p className="error-message" role="alert">{error}</p>}
             <div className="action-row"><span className={isModelConfigured() ? "model-state configured" : "model-state"}>{isModelConfigured() ? "● 已配置模型" : "○ 未配置模型，将使用本地兜底内容"}</span><button className="secondary-button" onClick={() => setShowSettings(true)}>模型配置</button><button className="secondary-button" disabled={selectedRun?.status === "locked" || selectedRun?.status === "running"} onClick={generateSelectedSkill}>{selectedRun?.status === "running" ? "生成中…" : selectedArtifact ? "重新生成" : "生成本关成果"}</button><button className="primary-button" disabled={selectedRun?.status === "running" || !selectedArtifact || selectedArtifact.status !== "draft"} onClick={confirmSelectedArtifact}>确认并进入下一关</button></div>
           </article>
 
@@ -248,6 +272,30 @@ export function App() {
           </aside>
         </section>
       </main>
+
+      <div className="mobile-action-dock">
+        <span>{selectedRun?.status === "locked" ? "请先确认前置关卡成果" : streaming ? "正在生成，请稍候" : isModelConfigured() ? "● 已配置模型 · 本地自动保存" : "未配置模型，将使用本地兜底内容"}</span>
+        <div><button className="secondary-button" onClick={() => setMobilePanel("steps")}>关卡</button>
+          {selectedArtifact?.status === "draft" && <button className="secondary-button" disabled={Boolean(streaming)} onClick={generateSelectedSkill}>重新生成</button>}
+          <button className="primary-button" disabled={Boolean(streaming) || selectedRun?.status === "locked" || !selectedRun} onClick={selectedArtifact?.status === "draft" ? confirmSelectedArtifact : generateSelectedSkill}>{streaming ? "生成中…" : selectedArtifact?.status === "draft" ? (selectedSkill.order === skillManifests.length ? "确认完成" : "确认并进入下一关") : selectedArtifact ? "重新生成" : "生成本关成果"}</button>
+        </div>
+      </div>
+      {mobilePanel && <MobilePanel title={mobilePanel === "config" ? "项目与配置" : "学习关卡"} sheet={mobilePanel === "steps"} onClose={() => setMobilePanel(undefined)}>
+        {mobilePanel === "config" ? <div className="mobile-config-actions">
+          <button onClick={() => { setMobilePanel(undefined); void startProjectCreation(); }}>＋ 创建学习项目</button>
+          <button onClick={() => { setMobilePanel(undefined); setShowLibrary(true); }}>资料库</button>
+          <button onClick={() => downloadProjectBackup(activeProject)}>导出当前项目</button>
+          <button disabled={Boolean(streaming)} onClick={() => { setMobilePanel(undefined); importInput.current?.click(); }}>导入项目备份</button>
+          <button disabled={!supportsProjectFolders() || Boolean(streaming)} onClick={() => { setMobilePanel(undefined); void openProjectFolder(); }}>{supportsProjectFolders() ? "打开项目目录" : "打开项目目录（此浏览器不支持）"}</button>
+          <button onClick={() => { setMobilePanel(undefined); setShowSettings(true); }}>模型设置</button>
+          <button onClick={() => { setMobilePanel(undefined); setShowMentor(true); }}>AI 学习导师</button>
+          <button disabled={Boolean(streaming)} onClick={() => { deleteProject(activeProject); setMobilePanel(undefined); }}>删除当前项目</button>
+          <p className="storage-hint">记录保存在当前浏览器，请定期导出备份。</p>
+        </div> : <nav className="mobile-step-list" aria-label="全部学习关卡">{skillManifests.map(skill => {
+          const run = activeProject.runs.find(item => item.skillId === skill.id);
+          return <button key={skill.id} aria-current={skill.id === selectedSkillId ? "step" : undefined} onClick={() => { setSelectedSkillId(skill.id); setMobilePanel(undefined); setMobileTab("task"); }}><strong>{skill.order}. {skill.name}</strong><span>{statusLabels[run?.status ?? "locked"]}</span></button>;
+        })}</nav>}
+      </MobilePanel>}
 
       {folderStatus && <div className="folder-status" role="status">⌂ {folderStatus}</div>}
       {showWizard && <ProjectWizard projectId={pendingProjectId} onClose={() => { setShowWizard(false); setPendingProjectId(undefined); }} onCreate={createProject} />}

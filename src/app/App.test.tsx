@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import { createSampleProject } from "./sampleProject";
-const harness = vi.hoisted(() => ({ states: [] as unknown[], cursor: 0, generate: vi.fn() }));
+const harness = vi.hoisted(() => ({ states: [] as unknown[], cursor: 0, generate: vi.fn(), empty: false }));
 vi.mock("react", async (original) => ({
   ...await original<typeof import("react")>(),
   useEffect: () => {},
@@ -21,7 +21,7 @@ vi.mock("react", async (original) => ({
 }));
 vi.mock("../skills/engine", () => ({ generateSkillArtifact: harness.generate }));
 vi.mock("../storage/projectRepository", () => ({ LocalProjectRepository: class {
-  list() { return [createSampleProject()]; }
+  list() { return harness.empty ? [] : [createSampleProject()]; }
   save() {}
 } }));
 vi.mock("../storage/projectDirectory", () => ({
@@ -43,7 +43,7 @@ function generateButton(tree: unknown) {
 function hasStreamingPreview(tree: unknown) {
   return elements(tree).some(element => element.props["aria-live"] === "polite");
 }
-beforeEach(() => { harness.states = []; harness.cursor = 0; harness.generate.mockReset(); });
+beforeEach(() => { harness.states = []; harness.cursor = 0; harness.generate.mockReset(); harness.empty = false; vi.unstubAllGlobals(); });
 describe("generation UI lifecycle", () => {
   it("clears the streaming preview after completion and permits another run", async () => {
     let finish!: (value: unknown) => void;
@@ -71,5 +71,49 @@ describe("generation UI lifecycle", () => {
     await run;
     expect(hasStreamingPreview(render())).toBe(false);
     expect(generateButton(render()).props.disabled).toBe(false);
+  });
+});
+
+describe("mobile project workspace", () => {
+  it("opens configuration only on demand and switches content tabs", () => {
+    let tree = render();
+    expect(elements(tree).some(element => element.props.title === "项目与配置")).toBe(false);
+    const config = elements(tree).find(element => element.props["aria-label"] === "项目配置")!;
+    (config.props.onClick as () => void)();
+    tree = render();
+    expect(elements(tree).some(element => element.props.title === "项目与配置")).toBe(true);
+    const review = elements(tree).find(element => element.props.id === "mobile-tab-review")!;
+    (review.props.onClick as () => void)();
+    expect(elements(render()).find(element => element.props.id === "mobile-tab-review")!.props["aria-selected"]).toBe(true);
+  });
+
+  it("keeps the dock available during generation and switches to results", async () => {
+    let finish!: (value: unknown) => void;
+    harness.generate.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const dock = elements(render()).find(element => element.props.className === "mobile-action-dock")!;
+    const generate = elements(dock).find(element => element.props.children === "生成本关成果")!;
+    const run = (generate.props.onClick as () => Promise<void>)();
+    const tree = render();
+    expect(elements(tree).find(element => element.props.id === "mobile-tab-result")!.props["aria-selected"]).toBe(true);
+    const runningDock = elements(tree).find(element => element.props.className === "mobile-action-dock")!;
+    expect(elements(runningDock).find(element => element.props.children === "生成中…")!.props.disabled).toBe(true);
+    finish({ id: "result", skillId: "perspective-storm", status: "draft", content: "内容", upstreamArtifactIds: [], reflection: { scores: {}, weaknesses: [] } });
+    await run;
+    const readyDock = elements(render()).find(element => element.props.className === "mobile-action-dock")!;
+    const confirm = elements(readyDock).find(element => element.props.children === "确认并进入下一关")!;
+    expect(confirm.props.disabled).toBe(false);
+    (confirm.props.onClick as () => void)();
+    expect(elements(render()).find(element => element.props.className === "mobile-skill-heading")!.props.children).toBeDefined();
+    expect(elements(render()).some(element => element.props.className === "mobile-action-dock")).toBe(true);
+  });
+
+  it("preserves the empty-project entry without project-only chrome", () => {
+    harness.empty = true;
+    vi.stubGlobal("localStorage", { getItem: () => "[]" });
+    const tree = render();
+    expect(elements(tree).some(element => element.props.children === "开始新的学习主题")).toBe(true);
+    expect(elements(tree).some(element => element.props.children === "创建学习项目")).toBe(true);
+    expect(elements(tree).some(element => element.props.className === "mobile-action-dock")).toBe(false);
+    expect(elements(tree).some(element => element.props["aria-label"] === "项目配置")).toBe(false);
   });
 });
