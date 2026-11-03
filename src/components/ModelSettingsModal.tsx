@@ -19,6 +19,7 @@ export function ModelSettingsModal({ onClose, onWorkspaceChanged }: { onClose: (
       setStatus("系统数据目录已设置，之后新项目会自动保存到该目录");
       onWorkspaceChanged?.();
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setStatus(error instanceof Error ? error.message : "系统数据目录设置失败");
     }
   }
@@ -113,7 +114,8 @@ export function ModelSettingsModal({ onClose, onWorkspaceChanged }: { onClose: (
         <label>API Key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="仅保存在当前会话，桌面版将使用 Windows 安全存储" /></label>
         <label>温度：{settings.temperature.toFixed(1)}<input type="range" min="0" max="1" step="0.1" value={settings.temperature} onChange={(event) => setSettings({ ...settings, temperature: Number(event.target.value) })} /></label>
         <p className="endpoint-preview">生成测试地址：{endpoint("/chat/completions")}</p>
-        <div className="workspace-setting"><div><strong>系统数据目录</strong><small>{supportsProjectFolders() ? workspace : "当前浏览器不支持本地文件夹访问"}</small></div><button className="secondary-button" onClick={chooseWorkspace} disabled={!supportsProjectFolders()}>选择目录</button></div>
+        <div className="workspace-setting"><div><strong>系统数据目录（可选）</strong><small>{supportsProjectFolders() ? workspace : "浏览器本地保存（无需选择目录）"}</small></div>{supportsProjectFolders() && <button className="secondary-button" onClick={chooseWorkspace}>选择目录</button>}</div>
+        <p className="storage-hint">手机端可直接创建项目，通过导入导出备份迁移记录。清除浏览器数据会删除本地记录，请定期导出。</p>
         {status && <p className={status.includes("失败") || status.includes("请填写") ? "settings-status error" : "settings-status"}>{status}</p>}
         <div className="action-row"><button className="secondary-button" onClick={testConnection}>测试连接</button><button className="primary-button" onClick={save}>保存配置</button></div>
       </section>

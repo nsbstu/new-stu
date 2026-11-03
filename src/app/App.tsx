@@ -9,7 +9,8 @@ import { ProjectWizard } from "../components/ProjectWizard";
 import { ModelSettingsModal } from "../components/ModelSettingsModal";
 import { MentorChat } from "../components/MentorChat";
 import { isModelConfigured } from "../ai/modelSettings";
-import { createProjectDirectory, getWorkspaceDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
+import { createProjectDirectory, moveProjectDirectoryBinding, openProjectFromDirectory, saveProjectToDirectory, scanWorkspaceProjects, supportsProjectFolders } from "../storage/projectDirectory";
+import { parseProjectBackup, downloadProjectBackup } from "../storage/projectBackup";
 import { createId } from "../utils/id";
 
 const statusLabels: Record<SkillStatus, string> = {
@@ -39,6 +40,7 @@ export function App() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMentor, setShowMentor] = useState(false);
   const generationActive = useRef(false);
+  const importInput = useRef<HTMLInputElement>(null);
   const [streaming, setStreaming] = useState<{ projectId: string; skillId: string; content: string }>();
   const [error, setError] = useState("");
 
@@ -69,18 +71,17 @@ export function App() {
 
   async function startProjectCreation() {
     const projectId = createId();
-    if (supportsProjectFolders()) {
-      const workspace = await getWorkspaceDirectory();
-      if (!workspace) { setFolderStatus("请先在“模型与设置”中设置系统数据目录"); setShowSettings(true); return; }
-    }
     setPendingProjectId(projectId);
     setShowWizard(true);
   }
 
   async function createProject(profile: ProjectProfile) {
-    if (pendingProjectId && pendingProjectId !== profile.id) await moveProjectDirectoryBinding(pendingProjectId, profile.id);
+    if (supportsProjectFolders() && pendingProjectId && pendingProjectId !== profile.id) await moveProjectDirectoryBinding(pendingProjectId, profile.id);
     const project: ProjectWorkspace = { profile, runs: createInitialRuns(), artifacts: [], mastery: 0 };
-    await createProjectDirectory(project);
+    if (supportsProjectFolders()) {
+      try { await createProjectDirectory(project); }
+      catch { setError("目录暂不可用，项目已保存在浏览器中，请导出备份。"); }
+    }
     repository.save(project);
     void saveProjectToDirectory(project).catch((reason) => setError("项目文件保存失败：" + (reason instanceof Error ? reason.message : String(reason))));
     setProjects((current) => [project, ...current]);
@@ -91,6 +92,23 @@ export function App() {
     setFolderStatus("");
   }
 
+  async function importBackup(file?: File) {
+    if (!file) return;
+    try {
+      if (generationActive.current) throw new Error("请等待当前生成结束后再导入项目");
+      if (file.size > 20 * 1024 * 1024) throw new Error("备份文件不能超过 20 MB");
+      const project = parseProjectBackup(await file.text());
+      if (projects.some(item => item.profile.id === project.profile.id) && !window.confirm("该项目已存在，是否用备份覆盖当前学习记录？")) return;
+      repository.save(project);
+      setProjects(current => [project, ...current.filter(item => item.profile.id !== project.profile.id)]);
+      setActiveProjectId(project.profile.id);
+      setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id);
+      setError("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "导入失败"); }
+  }
+
+  const backupInput = <input ref={importInput} type="file" accept=".json,application/json" hidden aria-label="导入项目备份" onChange={event => { void importBackup(event.target.files?.[0]); event.target.value = ""; }} />;
+
   async function openProjectFolder() {
     try {
       const project = await openProjectFromDirectory();
@@ -99,6 +117,7 @@ export function App() {
       setActiveProjectId(project.profile.id);
       setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id);
     } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError") return;
       setError(reason instanceof Error ? reason.message : "打开项目文件夹失败");
     }
   }
@@ -162,8 +181,8 @@ export function App() {
   }
 
   if (!activeProject) return <div className="app-shell"><main>
-    <h1>开始新的学习主题</h1><p>暂无学习项目，创建一个主题开始学习。</p>
-    <div className="action-row"><button className="primary-button" onClick={startProjectCreation}>创建学习项目</button><button onClick={openProjectFolder}>打开已有项目</button><button onClick={() => setShowSettings(true)}>模型与设置</button></div>
+    {backupInput}<h1>开始新的学习主题</h1><p>暂无学习项目，创建一个主题开始学习。</p>
+    <div className="action-row"><button className="primary-button" onClick={startProjectCreation}>创建学习项目</button>{supportsProjectFolders() && <button onClick={openProjectFolder}>打开项目目录</button>}<button onClick={() => importInput.current?.click()}>导入项目备份</button><button onClick={() => setShowSettings(true)}>模型与设置</button></div>
     {error && <p role="alert">{error}</p>}
     {showWizard && <ProjectWizard projectId={pendingProjectId} onClose={() => setShowWizard(false)} onCreate={createProject} />}
     {showSettings && <ModelSettingsModal onClose={() => setShowSettings(false)} />}
@@ -173,10 +192,11 @@ export function App() {
 
   return (
     <div className="app-shell">
+      {backupInput}
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">KQ</div><div><strong>Knowledge Quest</strong><span>知识征途</span></div></div>
         <button className="primary-button new-project" onClick={startProjectCreation}><span>＋</span> 创建学习项目</button>
-        <p className="sidebar-label">学习项目</p>
+        <p className="storage-hint">自动保存在当前浏览器，可导出备份后在其他设备导入。</p><p className="sidebar-label">学习项目</p>
         <nav className="project-list">
           {projects.map((project) => (
             <div className="project-list-row" key={project.profile.id}><button className={project.profile.id === activeProject.profile.id ? "project-card active" : "project-card"} key={project.profile.id} onClick={() => { setActiveProjectId(project.profile.id); setSelectedSkillId(getCurrentSkillId(project.runs) ?? skillManifests[0].id); }}>
@@ -185,7 +205,7 @@ export function App() {
             </button><button className="project-delete" aria-label={"删除主题：" + project.profile.title} title="删除主题" disabled={Boolean(streaming)} onClick={() => deleteProject(project)}>×</button></div>
           ))}
         </nav>
-        <div className="sidebar-footer"><button onClick={() => setShowLibrary(true)}>资料库</button><button onClick={openProjectFolder}>打开已有项目</button><button onClick={() => setShowSettings(true)}>模型与设置</button></div>
+        <div className="sidebar-footer"><button onClick={() => setShowLibrary(true)}>资料库</button><button onClick={() => downloadProjectBackup(activeProject)}>导出当前项目</button><button onClick={() => importInput.current?.click()}>导入项目备份</button>{supportsProjectFolders() && <button onClick={openProjectFolder}>打开项目目录</button>}<button onClick={() => setShowSettings(true)}>模型与设置</button></div>
       </aside>
 
       <main>
